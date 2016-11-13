@@ -89,8 +89,8 @@ impl PricingInput {
             match matches.opt_str(arg) {
                 None => panic!("Need to supply {}", desc),
                 Some(s) => match s.parse() {
-                    Err(e) => panic!("Can't parse supplied {} {}", desc, e),
-                    Ok(s) => s,
+                    Err(e) => panic!("Can't parse supplied {} ({}) {}", desc, s, e),
+                    Ok(x) => x,
                 }
             }
         }
