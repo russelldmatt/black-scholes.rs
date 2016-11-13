@@ -1,0 +1,9 @@
+[package]
+name = "black_scholes_server"
+version = "0.1.0"
+authors = ["Matt Russell <russell.d.matt@gmail.com>"]
+
+[dependencies]
+black_scholes = { path = "../black_scholes" }
+getopts = "0.2"
+tarpc = "0.6.0"
