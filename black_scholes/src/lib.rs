@@ -1,4 +1,8 @@
+#![feature(proc_macro)]
+#[macro_use] extern crate tarpc;
+#[macro_use] extern crate serde_derive;
 extern crate getopts;
+
 use std::str;
 
 #[cfg(test)]
@@ -8,7 +12,7 @@ mod tests {
     }
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Years(f64);
 
 impl str::FromStr for Years {
@@ -32,7 +36,7 @@ impl std::fmt::Display for ParseCallOrPutError {
 }
 
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum CallOrPut { 
     Call,
     Put
@@ -49,7 +53,7 @@ impl str::FromStr for CallOrPut {
     }
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct PricingInput { 
     pub s : f64,
     pub k : f64,
@@ -73,13 +77,13 @@ const CALL_OR_PUT_ARG : &'static str = "c";
 
 impl PricingInput { 
     pub fn add_opts(mut opts: getopts::Options) -> getopts::Options {
-        opts.reqopt(STOCK_ARG, "stock", "und-price/spot/stock-price", "40.");
-        opts.optopt(K_ARG, "strike", "strike", "hmm");
-        opts.optopt(TIME_TO_EXP_ARG, "time-to-exp", "time to expiration", "");
-        opts.optopt(DISCOUNT_RATE_ARG, "risk-free-rate", "discount rate", "");
-        opts.optopt(UND_RATE_ARG, "", "und rate", "");
-        opts.optopt(VOL_ARG, "", "vol", "");
-        opts.optopt(CALL_OR_PUT_ARG, "", "call or put", "C");
+        opts.reqopt(STOCK_ARG, "stock", "stock price", "PRICE");
+        opts.reqopt(K_ARG, "strike", "strike", "STRIKE");
+        opts.reqopt(TIME_TO_EXP_ARG, "time-to-exp", "time to expiration", "TIME_IN_YEARS");
+        opts.reqopt(DISCOUNT_RATE_ARG, "risk-free-rate", "discount rate (e.g. 0.01 for 1%)", "RATE");
+        opts.reqopt(UND_RATE_ARG, "", "und rate (e.g. 0.01 for 1%)", "RATE");
+        opts.reqopt(VOL_ARG, "vol", "vol (e.g. 0.2 for \"20 vol\")", "VOL");
+        opts.reqopt(CALL_OR_PUT_ARG, "call-or-put", "call or put", "C");
         opts
     }
 
@@ -106,6 +110,31 @@ impl PricingInput {
     }
 }
 
-pub fn price(pi : PricingInput) {
-    pi.s + 10.;
+pub fn price(pi : PricingInput) -> f64 {
+    pi.s + 10.
+}
+
+// rpc stuff
+pub mod server {
+    use PricingInput;
+    service! {
+        rpc hello(name: String) -> String;
+        rpc compute_price(input : PricingInput) -> f64;
+    }
+}
+
+pub struct Server;
+
+impl server::Service for Server {
+    fn hello(&self, s: String) -> String {
+        let response = format!("Hello, {}!", s);
+        println!("Generated an rpc response of {}", response);
+        response
+    }
+
+    fn compute_price(&self, input: PricingInput) -> f64 {
+        let response = price(input);
+        println!("Generated a price of {}", response);
+        response
+    }
 }

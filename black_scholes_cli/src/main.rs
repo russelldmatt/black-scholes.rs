@@ -15,6 +15,8 @@ fn print_usage_and_exit_if_help_present(program: &str, opts: &Options, m: &getop
     }
 }
 
+use black_scholes::server::*;
+
 fn main() {
     let args: Vec<String> = env::args().collect(); // like sys.argv
     let program = args[0].clone();
@@ -39,5 +41,13 @@ fn main() {
     };
     let pricing_input = black_scholes::PricingInput::from_matches(matches);
     println!("{:?}", pricing_input);
+    
+    let addr = "127.0.0.1:9000";
+    let client = Client::new(addr).unwrap();
+    println!("{}", client.hello("Mom".to_string()).unwrap());
+    assert_eq!("Hello, Mom!".to_string(),
+               client.hello("Mom".to_string()).unwrap());
+    println!("{}", client.compute_price(pricing_input).unwrap());
+    drop(client);
 }
 

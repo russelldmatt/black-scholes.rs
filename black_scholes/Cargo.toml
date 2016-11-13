@@ -5,3 +5,6 @@ authors = ["Matt Russell <russell.d.matt@gmail.com>"]
 
 [dependencies]
 getopts = "0.2"
+tarpc = "0.6.0"
+serde = "0.8"
+serde_derive = "0.8"
