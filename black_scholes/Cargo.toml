@@ -1,0 +1,7 @@
+[package]
+name = "black_scholes"
+version = "0.1.0"
+authors = ["Matt Russell <russell.d.matt@gmail.com>"]
+
+[dependencies]
+getopts = "0.2"
