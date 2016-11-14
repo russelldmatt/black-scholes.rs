@@ -112,29 +112,29 @@ impl PricingInput {
 
 fn cdf(x: f64) -> f64 {
     // grabbed from rust_machines implementation
-    use std::f64::consts as float_consts;
-    0.5 * (1f64 + x.signum() * (1f64 - (-float_consts::FRAC_2_PI * x * x).exp()) .sqrt())
+    use std::f64::consts;
+    0.5 * (1f64 + x.signum() * (1f64 - (-consts::FRAC_2_PI * x * x).exp()) .sqrt())
 }
 
 pub fn price(pi : PricingInput) -> f64 {
     let PricingInput {
         s, 
         k, 
-        time_to_exp : t, 
+        time_to_exp : Years(t), 
         discount_rate : r, 
-        und_rate : _,  // fix
+        und_rate : u,  
         vol : v, 
         call_or_put
     } = pi;
-    let Years(t) = t;
+    // u = (r-q)
+    let fwd = s * (u * t).exp();
     let d1 = 1. / (v * t.sqrt()) 
         * ((s / k).ln() 
-           + (r + (v * v) / 2.) * t);
+           + (u + (v * v) / 2.) * t);
     let d2 = d1 - v * t.sqrt();
-    let call_price = cdf(d1) * s - cdf(d2) * k * (-r * t).exp();
     match call_or_put { 
-        CallOrPut::Call => call_price,
-        CallOrPut::Put => k * (-r * t).exp() - s + call_price,
+        CallOrPut::Call => (-r * t).exp() * (fwd * cdf(d1) - k * cdf(d2)),
+        CallOrPut::Put  => (-r * t).exp() * (k * cdf(-d2) - fwd * cdf(-d1)),
     }
 }
 
