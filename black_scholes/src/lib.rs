@@ -110,8 +110,32 @@ impl PricingInput {
     }
 }
 
+fn cdf(x: f64) -> f64 {
+    // grabbed from rust_machines implementation
+    use std::f64::consts as float_consts;
+    0.5 * (1f64 + x.signum() * (1f64 - (-float_consts::FRAC_2_PI * x * x).exp()) .sqrt())
+}
+
 pub fn price(pi : PricingInput) -> f64 {
-    pi.s + 10.
+    let PricingInput {
+        s, 
+        k, 
+        time_to_exp : t, 
+        discount_rate : r, 
+        und_rate : _,  // fix
+        vol : v, 
+        call_or_put
+    } = pi;
+    let Years(t) = t;
+    let d1 = 1. / (v * t.sqrt()) 
+        * ((s / k).ln() 
+           + (r + (v * v) / 2.) * t);
+    let d2 = d1 - v * t.sqrt();
+    let call_price = cdf(d1) * s - cdf(d2) * k * (-r * t).exp();
+    match call_or_put { 
+        CallOrPut::Call => call_price,
+        CallOrPut::Put => k * (-r * t).exp() - s + call_price,
+    }
 }
 
 // rpc stuff
