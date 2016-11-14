@@ -75,6 +75,12 @@ const UND_RATE_ARG : &'static str = "u";
 const VOL_ARG : &'static str = "v";
 const CALL_OR_PUT_ARG : &'static str = "c";
 
+#[derive(Serialize, Deserialize, Debug)]
+pub enum ValidationError {
+    NegativeUndPrice(f64),
+    NegativeStrikePrice(f64),
+}
+
 impl PricingInput { 
     pub fn add_opts(mut opts: getopts::Options) -> getopts::Options {
         opts.reqopt(STOCK_ARG, "stock", "stock price", "PRICE");
@@ -108,6 +114,12 @@ impl PricingInput {
             call_or_put : parse_arg(&matches, CALL_OR_PUT_ARG, "call or put"),
         }
     }
+    
+    pub fn validate(self) -> Result<PricingInput, ValidationError> {
+        if self.s < 0. { Err(ValidationError::NegativeUndPrice(self.s)) }
+        else if self.k < 0. { Err(ValidationError::NegativeStrikePrice(self.k)) }
+        else { Ok(self) }
+    }
 }
 
 fn cdf(x: f64) -> f64 {
@@ -116,34 +128,37 @@ fn cdf(x: f64) -> f64 {
     0.5 * (1f64 + x.signum() * (1f64 - (-consts::FRAC_2_PI * x * x).exp()) .sqrt())
 }
 
-pub fn price(pi : PricingInput) -> f64 {
-    let PricingInput {
-        s, 
-        k, 
-        time_to_exp : Years(t), 
-        discount_rate : r, 
-        und_rate : u,  
-        vol : v, 
-        call_or_put
-    } = pi;
-    // u = (r-q)
-    let fwd = s * (u * t).exp();
-    let d1 = 1. / (v * t.sqrt()) 
-        * ((s / k).ln() 
-           + (u + (v * v) / 2.) * t);
-    let d2 = d1 - v * t.sqrt();
-    match call_or_put { 
-        CallOrPut::Call => (-r * t).exp() * (fwd * cdf(d1) - k * cdf(d2)),
-        CallOrPut::Put  => (-r * t).exp() * (k * cdf(-d2) - fwd * cdf(-d1)),
-    }
+pub fn price(pi : PricingInput) -> Result<f64, ValidationError> {
+    pi.validate().map(|pi| {
+        let PricingInput {
+            s, 
+            k, 
+            time_to_exp : Years(t), 
+            discount_rate : r, 
+            und_rate : u,  
+            vol : v, 
+            call_or_put
+        } = pi;
+        // u = (r-q)
+        let fwd = s * (u * t).exp();
+        let d1 = 1. / (v * t.sqrt()) 
+            * ((s / k).ln() 
+               + (u + (v * v) / 2.) * t);
+        let d2 = d1 - v * t.sqrt();
+        match call_or_put { 
+            CallOrPut::Call => (-r * t).exp() * (fwd * cdf(d1) - k * cdf(d2)),
+            CallOrPut::Put  => (-r * t).exp() * (k * cdf(-d2) - fwd * cdf(-d1)),
+        }
+    })
 }
 
 // rpc stuff
 pub mod server {
     use PricingInput;
+    use ValidationError;
     service! {
         rpc hello(name: String) -> String;
-        rpc compute_price(input : PricingInput) -> f64;
+        rpc compute_price(input : PricingInput) -> Result<f64, ValidationError>;
     }
 }
 
@@ -156,9 +171,9 @@ impl server::Service for Server {
         response
     }
 
-    fn compute_price(&self, input: PricingInput) -> f64 {
+    fn compute_price(&self, input: PricingInput) -> Result<f64, ValidationError> {
         let response = price(input);
-        println!("Generated a price of {}", response);
+        println!("Generated a price of {:?}", response);
         response
     }
 }
